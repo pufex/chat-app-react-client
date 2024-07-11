@@ -3,10 +3,8 @@ import type { ChatType } from "../../../types"
 import type { AskToMessagePayload } from "../../../socket-io/types"
 
 import {useForm} from "react-hook-form"
-import { useSocket } from "../../../socket-io/Socket"
-import { useEffect, useRef } from "react"
 import { useAuth } from "../../../auth/Auth"
-import { useChats } from "../../../store/store"
+import {useSendMessage} from "../../../socket-io/hooks/useSendMessage"
 
 import { FormProvider } from "react-hook-form"
 import SendMessageButton from "./SendMessageButton"
@@ -19,23 +17,14 @@ type MessageFormProps = {
 
 const MessageForm = ({
     chat,
+    listRef,
 }: MessageFormProps) => {
 
     const {auth} = useAuth()
-    const {sendMessage} = useSocket()
-    const {appendMessage} = useChats()
-
+    const sendMessage = useSendMessage()
+    
     const methods = useForm()
     const {handleSubmit, reset} = methods
-    const unsubEvents = useRef<Function | undefined>(undefined)
-
-    useEffect(() => {
-        const unsubFunction = unsubEvents.current
-        if(unsubFunction)
-        return () => {
-            unsubFunction()
-        }
-    }, [unsubEvents]) 
 
     const onSubmit = (data: FieldValues) => {
         if(!auth)
@@ -48,13 +37,16 @@ const MessageForm = ({
                 ? chat.users[0].id
                 : chat.users[1].id
         } 
-        sendMessage(
-            payload, 
-            ({message}) => {
-                appendMessage(message)
-                reset()
+        sendMessage(payload, () => {
+            reset()
+            if(listRef.current){
+                const {scrollHeight} = listRef.current
+                listRef.current.scrollTo({
+                    behavior: "instant",
+                    top: scrollHeight
+                })
             }
-        )
+        })
     }
 
     return <FormProvider {...methods}>
@@ -67,8 +59,8 @@ const MessageForm = ({
                 registerOptions={{
                     required: "Required",
                     maxLength: {
-                        value: 200,
-                        message: "200 char. max."
+                        value: 500,
+                        message: "500 char. max."
                     }
                 }}
                 placeholder="What's on your mind?"

@@ -4,7 +4,7 @@ import { ImSpinner8 as LoadingIcon } from "react-icons/im";
 import { cn } from "../utils/cn";
 
 export type HTMLButtonRole = "submit" | "button" | "reset"
-export type HTMLButtonTypes = "primary" | "secondary" | "raw"
+export type HTMLButtonTypes = "primary" | "secondary" | "raw" | "custom"
 
 interface ButtonProps extends HTMLAttributes<Omit<HTMLButtonElement, 
     "disabled" |
@@ -30,9 +30,10 @@ const Button = ({
         {...rest}
         type={role}
         className={cn(
+            "button-styles",
             className ?? "",
             type,
-            "button",
+            type !== "custom" ? "button" : "custom",
             isLoading ? "loading" : "",
             isDisabled ? "disabled" : ""
         )}

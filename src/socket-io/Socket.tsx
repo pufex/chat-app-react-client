@@ -1,24 +1,26 @@
-import React from "react"
-
 import type { Socket } from "socket.io-client"
+import type { SoundStateType } from "../types"
 import type { 
     InitSuccessPayload,
     GiveMessagePayload,
-    AskToMessagePayload,
-    SendMessageSuccessPayload,
-    ErrorPayload
+    MessagesWereReadPayload,
+    MessageRemovedPayload,
+    MessageEditedPayload
 } from "./types"
 
-import {createContext, useContext, useState, useEffect, useLayoutEffect, useCallback} from "react"
+import {createContext, useContext, useState, useEffect, useLayoutEffect, useRef} from "react"
 import {useAuth} from "../auth/Auth"
 import { useChats } from "../store/store"
 
+import ReactPlayer from "react-player"
+
 import io from "socket.io-client"
+
+import Notification from "../assets/sounds/notification-sound.mp3"
 
 export type SocketContextType = {
     socket: Socket | undefined,
     setSocket: React.Dispatch<React.SetStateAction<Socket | undefined>>,
-    sendMessage: (payload: AskToMessagePayload, onSuccess?: (payload: SendMessageSuccessPayload) => void, onError?: (error: ErrorPayload) => void) => () => void
 }
 
 const SocketContext = createContext<undefined | SocketContextType>(undefined)
@@ -37,16 +39,33 @@ const SocketProvider = ({
     children
 }: SocketProviderProps) => {
     
-    
+    const notificationRef = useRef<ReactPlayer>(null)
+    const [sound, setSound] = useState<SoundStateType>({
+        playing: false,
+        loop: false,
+    });
+    const {playing, loop} = sound
+
+    const handleSoundPlay = () => {
+        if(notificationRef.current){
+            notificationRef.current.seekTo(0, "seconds")
+        }
+        setSound(prev => ({...prev, playing: true}))
+    }
+    const handleSoundEnd = () => setSound(prev => ({...prev, playing: false}))
+
+
     const [socket, setSocket] = useState<Socket>()
     const {auth, setAuth} = useAuth();
     const {
         chats,
         setLoadingChats, 
         loadingChats,
-        setMessagePending,
         appendMessage,
-        setChats
+        makeMessagesRead,
+        setChats,
+        replaceMessageContent,
+        makeMessageRemoved
     } = useChats()
 
     useEffect(() => {
@@ -68,20 +87,48 @@ const SocketProvider = ({
         setLoadingChats(true)
         
         const handleGivenMessage = ({message}: GiveMessagePayload) => {
-            appendMessage(message)
+            appendMessage({...message, isEdited: false})
+            if(message.user.id !== auth.user.id)
+                handleSoundPlay()
+        }
+
+        const handleMessagesRead = ({chat_id, user_id}: MessagesWereReadPayload) => {
+            makeMessagesRead(chat_id, user_id)
+        
+        }
+
+        const handleMessageEdited = ({chat_id, message_id, new_content}: MessageEditedPayload) => {
+            replaceMessageContent(chat_id, message_id, new_content)
+        }
+
+        const handleRemovedMessage = ({chat_id, message_id}: MessageRemovedPayload) => {
+            makeMessageRemoved(chat_id, message_id)
         }
 
         const initErrorHandler = () => {
             setAuth(null)
-
             setLoadingChats(false)
         }
 
         const initSuccessHandler = ({chats}: InitSuccessPayload) => {
-            console.log(chats)
-            setChats(chats)
+            console.log([...chats].map(chat => ({
+                ...chat,
+                messages: chat.messages.map(message => ({
+                    ...message,
+                    isEdited: false 
+                }))
+            })))
+            setChats([...chats].map(chat => ({
+                ...chat,
+                messages: chat.messages.map(message => ({
+                    ...message,
+                    isEdited: false 
+                }))
+            })))
             socket.on("giveMessage", handleGivenMessage)
-
+            socket.on("messagesWereRead", handleMessagesRead)
+            socket.on("messageRemoved", handleRemovedMessage)
+            socket.on("messageEdited", handleMessageEdited)
             setLoadingChats(false)
         }
         
@@ -92,54 +139,32 @@ const SocketProvider = ({
             socket.off("initSuccess", initSuccessHandler)
             socket.off("initError", initErrorHandler)
             socket.off("giveMessage", handleGivenMessage)
-        }
-    }, [socket])
-
-    const sendMessage = useCallback((
-        payload: AskToMessagePayload, 
-        onSuccess?: (payload: SendMessageSuccessPayload) => void, 
-        onError?: (error: ErrorPayload) => void
-    ) => {
-        if(!socket)
-            return () => {}
-
-        const handleSuccess = (payload: SendMessageSuccessPayload) => {
-            console.log("Sended ")
-            if(onSuccess)
-                onSuccess(payload)
-            setMessagePending(false)
-        }
-
-        const handleError = (error: ErrorPayload) => {
-            console.log("There was a problem sending message...")
-            console.log(error)
-            if(onError)
-                onError(error)
-            setMessagePending(false)
-        }
-
-
-        socket.once("sendMessageError", handleError)
-        socket.once("sendMessageSuccess", handleSuccess)
-        setMessagePending(true)
-        socket.emit("askToMessage", payload)
-        
-        return () => {
-            socket.off("sendMessageError", handleError)
-            socket.off("sendMessageSuccess", handleSuccess)
+            socket.off("messagesWereRead", handleMessagesRead)
+            socket.off("messageEdited", handleMessageEdited)
+            socket.off("messageRemoved", handleRemovedMessage)
         }
     }, [socket])
 
     return <SocketContext.Provider value={{
         socket, 
         setSocket,
-        sendMessage
     }}>
         {
             socket === undefined && loadingChats
                 ? "Loading..."
                 : chats
-                    ? children
+                    ? <>
+                        <ReactPlayer
+                            width={0}
+                            height={0}
+                            playing={playing}
+                            loop={loop}
+                            url={Notification}
+                            ref={notificationRef}
+                            onEnded={handleSoundEnd}
+                        />
+                        {children}
+                    </>
                     : "Socket broken :("
         }
     </SocketContext.Provider>

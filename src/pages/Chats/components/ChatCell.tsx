@@ -1,6 +1,11 @@
 import type { ChatType } from "../../../types"
-import JoinChatButton from "./JoinChatButton"
+
 import { useAuth } from "../../../auth/Auth"
+import { useMemo } from "react"
+
+import JoinChatButton from "./JoinChatButton"
+import PingBall from "./PingBall"
+
 import Avatar from "../../../assets/avatar.jpg"
 
 type ChatCellProps = {
@@ -17,6 +22,18 @@ const ChatCell = ({
         : user.id !== auth.user.id
     )
 
+    const unread_count = useMemo(() => {
+        if(!auth)
+            return 0
+        let count = 0;
+        for(let i = 0; i < chat.messages.length; i++){
+            const message = chat.messages[i]
+            if(message.user.id !== auth.user.id && !message.isRead)
+                count++;
+        }
+        return count
+    }, [chat])
+
     if(friend)
     return <div className="chat-cell__container">
         <div className="chat-cell__left">
@@ -26,9 +43,12 @@ const ChatCell = ({
                 alt={`${friend.name} ${friend.surname}`} 
             />
             <div className="chat-cell__info">
-                <h1 className="chat-cell__friend-name"> 
-                    {`${friend.name} ${friend.surname}`}
-                </h1>
+                <div className="chat-cell__info-top">
+                    <h1 className="chat-cell__friend-name"> 
+                        {`${friend.name} ${friend.surname}`}
+                    </h1>
+                    <PingBall count={unread_count} />
+                </div>
                 <p className="chat-cell__last-message">
                     {
                         chat.lastMessage

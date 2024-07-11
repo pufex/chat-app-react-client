@@ -8,18 +8,31 @@ export type UserType = {
     email: string,
 }
 
-export type MessageType = {
+export type ServerMessageType = {
     id: string,
     chat_id: string,
-    content: string,
+    content: string | null,
     createdOn: Date,
     updatedOn: Date,
-    user: UserType
+    user: UserType,
+    isRead: boolean,
+    isRemoved: boolean,
+    wasEdited: boolean,
 }
 
-export type ChatType = {
+export type MessageType = ServerMessageType & {isEdited: boolean}
+
+export type ServerChatType = {
     id: string,
     users: UserType[],
     lastMessage?: string,
-    messages: MessageType[]
+    messages: ServerMessageType[]
 }
+
+export type ChatType = Omit<ServerChatType, "messages"> & {messages: MessageType[]}
+
+export type SoundStateType = {
+    playing: boolean,
+    loop: boolean,
+}
+
