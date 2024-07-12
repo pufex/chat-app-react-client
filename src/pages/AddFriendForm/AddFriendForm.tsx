@@ -1,5 +1,5 @@
 import type { FieldValues } from 'react-hook-form'
-import type { ChatType } from '../../types'
+import type { ServerChatType } from '../../types'
 
 import { useChats } from '../../store/store'
 import {useForm} from 'react-hook-form'
@@ -30,7 +30,7 @@ const AddFriendForm = () => {
         setError("")
         try{
             const result = await api.post("/chats", {email})
-            const chat = result.data.chat_id as ChatType
+            const chat = result.data.chat as ServerChatType
             appendChat(chat)
             navigate(`/chats/${chat.id}`)
         }catch(err){

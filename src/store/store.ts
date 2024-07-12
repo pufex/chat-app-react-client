@@ -1,6 +1,7 @@
 import type { 
     ChatType,
-    MessageType
+    ServerChatType,
+    ServerMessageType
 } from "../types";
 import { create } from "zustand";
 
@@ -11,14 +12,14 @@ type ChatsState = {
     shouldScroll: boolean,
 
     setShouldScroll: (shouldScroll: boolean) => void,
-    setChats: (chats: ChatType[]) => void,
+    setChats: (chats: ServerChatType[]) => void,
 
     toggleEdited: (chat_id: string, message_id: string) => void
     replaceMessageContent: (chat_id: string, message_id: string, new_content: string) => void
 
-    appendChat: (chat: ChatType) => void,
+    appendChat: (chat: ServerChatType) => void,
 
-    appendMessage: (message: MessageType) => void,
+    appendMessage: (message: ServerMessageType) => void,
 
     makeMessagesRead: (chat_id: string, user_id: string) => void
 
@@ -35,7 +36,13 @@ export const useChats = create<ChatsState>()((set) => ({
     shouldScroll: true,
     setMessagePending: (messagePending) => set(() => ({messagePending})),
     setShouldScroll: (shouldScroll) => set(() => ({shouldScroll})),
-    setChats: (chats) => set(() => ({chats})),
+    setChats: (chats) => set(() => ({chats: chats.map(chat => ({
+        ...chat,
+        messages: chat.messages.map(message => ({
+            ...message,
+            isEdited: false,
+        }))
+    }))})),
     toggleEdited: (chat_id, message_id) => set((state) => ({
         chats: !state.chats
             ? state.chats
@@ -62,6 +69,12 @@ export const useChats = create<ChatsState>()((set) => ({
                 if(chat.id === chat_id)
                     return {
                         ...chat,
+                        last_message: !chat.last_message || chat.last_message.message_id !== message_id
+                            ? chat.last_message
+                            : {
+                                ...chat.last_message,
+                                content: new_content
+                            },
                         messages: chat.messages.map(message => {
                             if(message.id === message_id)
                                 return {
@@ -78,7 +91,10 @@ export const useChats = create<ChatsState>()((set) => ({
     appendChat: (chat) => set((state) => ({
         chats: !state.chats
             ? state.chats
-            : [...state.chats, chat]
+            : [...state.chats, {
+                ...chat,
+                messages: []
+            }]
     })),
     appendMessage: (message) => set((state) => ({
         chats: !state.chats
@@ -87,8 +103,14 @@ export const useChats = create<ChatsState>()((set) => ({
                 if(chat.id === message.chat_id)
                     return {
                         ...chat,
-                        lastMessage: message.content ?? "Message was removed.",
-                        messages: [...chat.messages, message]
+                        last_message: {
+                            message_id: message.id,
+                            content: message.content
+                        },
+                        messages: [...chat.messages, {
+                            ...message,
+                            isEdited: false,  
+                        }]
                             .sort((a, b) => new Date(a.createdOn).getTime() - new Date(b.createdOn).getTime())
                     }
                 return chat
@@ -118,6 +140,12 @@ export const useChats = create<ChatsState>()((set) => ({
                 if(chat.id === chat_id)
                     return {
                         ...chat,
+                        last_message: !chat.last_message || chat.last_message.message_id !== message_id
+                            ? chat.last_message
+                            : {
+                                ...chat.last_message,
+                                content: null
+                            },
                         messages: chat.messages.map(message => {
                             if(message.id === message_id)
                                 return {

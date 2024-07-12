@@ -87,7 +87,7 @@ const SocketProvider = ({
         setLoadingChats(true)
         
         const handleGivenMessage = ({message}: GiveMessagePayload) => {
-            appendMessage({...message, isEdited: false})
+            appendMessage({...message})
             if(message.user.id !== auth.user.id)
                 handleSoundPlay()
         }
@@ -111,20 +111,7 @@ const SocketProvider = ({
         }
 
         const initSuccessHandler = ({chats}: InitSuccessPayload) => {
-            console.log([...chats].map(chat => ({
-                ...chat,
-                messages: chat.messages.map(message => ({
-                    ...message,
-                    isEdited: false 
-                }))
-            })))
-            setChats([...chats].map(chat => ({
-                ...chat,
-                messages: chat.messages.map(message => ({
-                    ...message,
-                    isEdited: false 
-                }))
-            })))
+            setChats(chats)
             socket.on("giveMessage", handleGivenMessage)
             socket.on("messagesWereRead", handleMessagesRead)
             socket.on("messageRemoved", handleRemovedMessage)

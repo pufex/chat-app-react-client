@@ -51,10 +51,12 @@ const ChatCell = ({
                 </div>
                 <p className="chat-cell__last-message">
                     {
-                        chat.lastMessage
-                            ? chat.lastMessage.length < 50
-                                ? chat.lastMessage
-                                : `${chat.lastMessage.substring(0, 50)}...`
+                        chat.last_message
+                            ? !chat.last_message.content
+                                ? "Message was removed."
+                                : chat.last_message.content.length < 50
+                                    ? chat.last_message.content
+                                    : `${chat.last_message.content.substring(0, 50)}...`
                             : "You should definitely say something!"
                     }
                 </p>

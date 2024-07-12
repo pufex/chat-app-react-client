@@ -21,11 +21,15 @@ export type ServerMessageType = {
 }
 
 export type MessageType = ServerMessageType & {isEdited: boolean}
+export type LastMessageType = {
+    message_id: string,
+    content: string | null
+}
 
 export type ServerChatType = {
     id: string,
     users: UserType[],
-    lastMessage?: string,
+    last_message: LastMessageType | null,
     messages: ServerMessageType[]
 }
 
